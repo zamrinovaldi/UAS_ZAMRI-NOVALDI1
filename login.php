@@ -1,91 +1,112 @@
 <?php
 session_start();
-$pesan = "";
-if (isset($_POST['tombol'])) {
-    //proses login
+require 'koneksi.php';
 
-    #1. koneksi
-    include("koneksi.php");
+if (isset($_SESSION['user'])) {
+    header("Location: dashboard.php");
+    exit;
+}
 
-    #2. mengambil value data input
-    $email = $_POST['username'];
-    $pass = md5($_POST['pass']);
+$error = "";
 
-    #3. cek apakah email dan password ada di database
-    $qry = "SELECT * FROM users WHERE username='$email' AND pass='$pass'";
-    $result = mysqli_query($koneksi, $qry);
-    $cek_login = mysqli_num_rows($result);
-
-    if ($cek_login == 0) {
-        //login gagal
-        $pesan = "Login Gagal";
+if (isset($_POST['login'])) {
+    $username = mysqli_real_escape_string($koneksi, $_POST['username']);
+    $password = mysqli_real_escape_string($koneksi, $_POST['password']);
+    
+    $query = "SELECT * FROM users WHERE username='$username' AND password='$password'";
+    $result = mysqli_query($koneksi, $query);
+    
+    if (mysqli_num_rows($result) > 0) {
+        $data = mysqli_fetch_assoc($result);
+        $_SESSION['user'] = $data;
+        header("Location: dashboard.php");
+        exit;
     } else {
-        //login berhasil
-        $pesan = "Login berhasil";
-        // SESSION & COOKIE
-        if (isset($_POST['cek']) == "yes") {
-            //simpan cookie
-            setcookie("coo_email", $email, time() + (3600 * 24 * 30), "/");
-            header("location:index.php");
-        } else {
-            //simpan session
-            $_SESSION['ses_email'] = $email;
-            header("location:index.php");
-        }
+        $error = "Username atau password salah!";
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <title>Login - E-Gadget Inventory</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eaeff2; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.05); width: 100%; max-width: 380px; }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; font-weight: 600; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #7f8c8d; font-size: 14px; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #dce4ec; border-radius: 6px; box-sizing: border-box; transition: border-color 0.3s; font-size: 15px; }
+        .form-group input:focus { border-color: #3498db; outline: none; }
+        .btn-login { width: 100%; padding: 12px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; transition: background 0.3s; }
+        .btn-login:hover { background: #2980b9; }
+        .alert { color: #fff; background: #e74c3c; padding: 12px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-size: 14px; }
+    </style>
 </head>
+<body>
+    <div class="login-box">
+        <h2>E-Gadget System</h2>
+        <?php if($error): ?>
+            <div class="alert"><?= $error ?></div>
+        <?php endif; ?>
 
-<body style="background-color:#d1e6d4">
-    <div class="container">
-        <div class="row my-5">
-            <div class="col-8 m-auto">
-                <div class="card shadow p-3 mb-5 bg-body-tertiary rounded">
-                    <div class="card-header">
-                        <b>HALAMAN LOGIN</b>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-primary" role="alert">
-                            <?= $pesan ?>
-                        </div>
-                        <form action="login.php" method="post">
-                            <div class="mb-3">
-                                <label for="exampleInputEmail1" class="form-label">Email address</label>
-                                <input type="email" name="username" class="form-control" id="exampleInputEmail1"
-                                    aria-describedby="emailHelp">
-
-                            </div>
-                            <div class="mb-3">
-                                <label for="exampleInputPassword1" class="form-label">Password</label>
-                                <input type="password" name="pass" class="form-control" id="exampleInputPassword1">
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" name="cek" value="yes" class="form-check-input"
-                                    id="exampleCheck1">
-                                <label class="form-check-label" for="exampleCheck1">Check me out</label>
-                            </div>
-                            <button type="submit" name="tombol" class="btn btn-primary">Login</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
+        <div style="text-align:center; margin-bottom:20px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
+            <p style="font-size:13px; color:#7f8c8d; margin-bottom:10px;">Masuk lebih cepat</p>
+            <button type="button" id="btn-login-bio" class="btn-login" style="background:#9b59b6;">Sidik Jari</button>
         </div>
+
+        <p style="text-align:center; font-size:13px; color:#7f8c8d; margin-bottom:15px;">Atau gunakan kredensial manual:</p>
+        <form method="POST" action="">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" name="username" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" name="login" class="btn-login">Sign In</button>
+        </form>
     </div>
 
+    <script>
+    const btnLoginBio = document.getElementById('btn-login-bio');
+    if (btnLoginBio) {
+        btnLoginBio.addEventListener('click', async () => {
+            try {
+                const challenge = new Uint8Array(32);
+                window.crypto.getRandomValues(challenge);
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
-        crossorigin="anonymous"></script>
+                const publicKey = {
+                    challenge: challenge,
+                    rpId: window.location.hostname,
+                    timeout: 60000,
+                    userVerification: "required"
+                };
+
+                const assertion = await navigator.credentials.get({ publicKey });
+                const rawId = btoa(String.fromCharCode.apply(null, new Uint8Array(assertion.rawId)));
+                
+                const response = await fetch('login_biometric.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential_id: rawId })
+                });
+                
+                const result = await response.json();
+                if (result.status === 'success') {
+                    window.location.href = 'dashboard.php';
+                } else {
+                    alert(result.message || "Gagal login.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Autentikasi biometrik dibatalkan, atau perangkat ini belum terdaftar di sistem.");
+            }
+        });
+    }
+    </script>
 </body>
-
 </html>

@@ -1,7 +1,12 @@
 <?php
-$conn = mysqli_connect("localhost", "root", "", "db_gadget_nim");
+$host = "localhost";
+$user = "root";
+$pass = "";
+$db   = "db_gadget_nim";
 
-if (!$conn) {
+$koneksi = mysqli_connect($host, $user, $pass, $db);
+
+if (!$koneksi) {
     die("Koneksi gagal: " . mysqli_connect_error());
 }
 ?>
