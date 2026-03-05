@@ -6,48 +6,47 @@ if (!isset($_SESSION['user'])) {
 }
 require 'koneksi.php';
 
+// Fetch current user data for profile display
+$user_id = $_SESSION['user']['id_user'];
+$user_query = mysqli_query($koneksi, "SELECT * FROM users WHERE id_user = '$user_id'");
+$user_data = mysqli_fetch_assoc($user_query);
+
 $error = "";
 
-$kategori_query = mysqli_query($koneksi, "SELECT * FROM kategori");
-$merks_query = mysqli_query($koneksi, "SELECT * FROM merk");
+// Ambil data untuk dropdown dropdown
+$kategori_query = mysqli_query($koneksi, "SELECT * FROM kategori ORDER BY nama_kategori ASC");
+$merks_query = mysqli_query($koneksi, "SELECT * FROM merk ORDER BY nama_merk ASC");
 
 if (isset($_POST['submit'])) {
     $nama = mysqli_real_escape_string($koneksi, $_POST['nama_produk']);
-    $id_kategori = (int)$_POST['id_kategori'];
-    $id_merk = (int)$_POST['id_merk'];
-    $harga = (int)$_POST['harga'];
-    $stok = (int)$_POST['stok'];
-    
-    if (empty(trim($nama))) {
-        $error = "Nama produk tidak boleh kosong!";
-    } elseif ($harga < 0 || $stok < 0) {
-        $error = "Harga dan Stok minimum bernilai 0!";
-    } else {
-        $foto = $_FILES['foto_produk']['name'];
-        $tmp = $_FILES['foto_produk']['tmp_name'];
-        $ext = strtolower(pathinfo($foto, PATHINFO_EXTENSION));
-        
-        $allowed = array('jpg', 'jpeg', 'png');
-        
-        if (!in_array($ext, $allowed)) {
-            $error = "Format file hanya diizinkan JPG/PNG!";
-        } else {
-            $new_foto = time() . '_' . preg_replace("/[^a-zA-Z0-9.-]/", "", $foto);
-            $path = "img/" . $new_foto;
-            
-            if (move_uploaded_file($tmp, $path)) {
-                $query = "INSERT INTO produk (id_kategori, id_merk, nama_produk, harga, stok, foto_produk) 
-                          VALUES ('$id_kategori', '$id_merk', '$nama', '$harga', '$stok', '$new_foto')";
-                if (mysqli_query($koneksi, $query)) {
-                    header("Location: dashboard.php");
-                    exit;
-                } else {
-                    $error = "Gagal menyimpan data ke database.";
-                }
+    $id_kat = mysqli_real_escape_string($koneksi, $_POST['id_kategori']);
+    $id_merk = mysqli_real_escape_string($koneksi, $_POST['id_merk']);
+    $harga = mysqli_real_escape_string($koneksi, $_POST['harga']);
+    $stok = mysqli_real_escape_string($koneksi, $_POST['stok']);
+
+    // File info
+    $foto_name = $_FILES['foto_produk']['name'];
+    $foto_tmp = $_FILES['foto_produk']['tmp_name'];
+    $foto_ext = strtolower(pathinfo($foto_name, PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png'];
+
+    if (in_array($foto_ext, $allowed)) {
+        $new_name = time() . "_" . $foto_name;
+        if (move_uploaded_file($foto_tmp, "img/" . $new_name)) {
+            $query = "INSERT INTO produk (nama_produk, id_kategori, id_merk, harga, stok, foto_produk) 
+                      VALUES ('$nama', '$id_kat', '$id_merk', '$harga', '$stok', '$new_name')";
+            if (mysqli_query($koneksi, $query)) {
+                log_activity("Tambah Produk", "Menambahkan produk baru: $nama");
+                header("Location: dashboard.php?msg=Produk baru berhasil ditambahkan!&type=success");
+                exit;
             } else {
-                $error = "Gagal mengupload gambar.";
+                $error = "Terjadi kesalahan database saat menyimpan.";
             }
+        } else {
+            $error = "Gagal mengupload file.";
         }
+    } else {
+        $error = "Format file tidak didukung. Gunakan JPG atau PNG.";
     }
 }
 ?>
@@ -57,79 +56,126 @@ if (isset($_POST['submit'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Produk - E-Gadget</title>
+    <link rel="stylesheet" href="style.css">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #eaeff2; margin: 0; padding: 0; }
-        .navbar { background: #3498db; padding: 15px 30px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .navbar h1 { margin: 0; font-size: 22px; }
-        .navbar a { color: white; text-decoration: none; padding: 8px 15px; background: rgba(255,255,255,0.2); border-radius: 5px; transition: background 0.3s; }
-        .navbar a:hover { background: rgba(255,255,255,0.3); }
-        .container { max-width: 600px; margin: 30px auto; padding: 30px; background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; color: #2c3e50; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; font-size: 14px; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
-        .form-group input:focus, .form-group select:focus { border-color: #3498db; outline: none; }
-        .form-group input[type="file"] { padding: 8px; }
-        .btn-submit { background: #2ecc71; width: 100%; padding: 12px; color: white; font-weight: 600; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; transition: background 0.3s; }
-        .btn-submit:hover { background: #27ae60; }
-        .alert { color: white; background: #e74c3c; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
+        .form-container { max-width: 900px; margin: 0 auto; }
+        .image-preview-placeholder {
+            width: 100%;
+            height: 200px;
+            background: rgba(0,0,0,0.02);
+            border: 2px dashed var(--border-color);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
-    <div class="navbar">
-        <h1>E-Gadget System</h1>
-        <div><a href="dashboard.php">Kembali ke Dashboard</a></div>
+    <div class="win-bloom-bg"></div>
+    <div class="app-wrapper">
+        <?php include 'sidebar.php'; ?>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="fade-in">
+                    <h1 style="font-weight: 800; letter-spacing: -1.5px; font-size: 32px;">Tambah Produk</h1>
+                    <p style="color: var(--text-muted); font-size: 15px;">Daftarkan stok gadget baru ke katalog sistem.</p>
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <a href="dashboard.php" class="win-btn-action win-btn-cancel">
+                        <span>⬅️</span> Kembali
+                    </a>
+                    <div class="theme-toggle" id="theme-toggle">🌓</div>
+                </div>
+            </header>
+
+            <div class="form-container fade-in">
+                <div class="glass" style="padding: 40px; border-radius: 24px;">
+                    <?php if($error): ?>
+                        <div style="background: rgba(209, 52, 56, 0.1); color: var(--danger); padding: 15px; border-radius: 12px; margin-bottom: 25px; font-size: 14px; border-left: 4px solid var(--danger);">
+                            ⚠️ <?= $error ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="win-form-grid">
+                            <div class="win-form-group">
+                                <label class="win-label">Nama Model Gadget</label>
+                                <input type="text" name="nama_produk" class="win-input-premium" placeholder="e.g. iPhone 15 Pro, Galaxy S24..." required>
+                            </div>
+
+                            <div class="win-form-group">
+                                <label class="win-label">Kategori</label>
+                                <select name="id_kategori" class="win-input-premium" required>
+                                    <option value="" disabled selected>Pilih Kategori...</option>
+                                    <?php while($k = mysqli_fetch_assoc($kategori_query)): ?>
+                                        <option value="<?= $k['id_kategori'] ?>"><?= htmlspecialchars($k['nama_kategori']) ?></option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+
+                            <div class="win-form-group">
+                                <label class="win-label">Merk / Brand</label>
+                                <select name="id_merk" class="win-input-premium" required>
+                                    <option value="" disabled selected>Pilih Brand...</option>
+                                    <?php while($m = mysqli_fetch_assoc($merks_query)): ?>
+                                        <option value="<?= $m['id_merk'] ?>"><?= htmlspecialchars($m['nama_merk']) ?></option>
+                                    <?php endwhile; ?>
+                                </select>
+                            </div>
+
+                            <div class="win-form-group">
+                                <label class="win-label">Harga Jual (Rp)</label>
+                                <input type="number" name="harga" class="win-input-premium" placeholder="0" min="0" required>
+                            </div>
+
+                            <div class="win-form-group">
+                                <label class="win-label">Stok Gudang awal</label>
+                                <input type="number" name="stok" class="win-input-premium" placeholder="0" min="0" required>
+                            </div>
+
+                            <div class="win-form-group">
+                                <label class="win-label">Foto Produk (JPG/PNG)</label>
+                                <input type="file" name="foto_produk" class="win-input-premium" accept=".jpg, .jpeg, .png" required id="imgInput">
+                            </div>
+                        </div>
+
+                        <div id="preview-container" style="display: none; margin-bottom: 30px;">
+                            <label class="win-label">Preview Gambar</label>
+                            <div class="image-preview-placeholder">
+                                <img id="previewImg" src="#" alt="Preview" style="max-height: 100%; max-width: 100%; object-fit: contain;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: flex-end; gap: 15px; border-top: 1px solid var(--border-color); padding-top: 30px;">
+                            <button type="reset" class="win-btn-action win-btn-cancel">Reset Form</button>
+                            <button type="submit" name="submit" class="win-btn-action win-btn-save">
+                                <span>➕</span> Daftarkan Produk
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
     </div>
-    
-    <div class="container">
-        <h2>Tambah Data Produk</h2>
-        <?php if($error): ?>
-            <div class="alert"><?= $error ?></div>
-        <?php endif; ?>
-        
-        <form method="POST" action="" enctype="multipart/form-data">
-            <div class="form-group">
-                <label>Nama Produk</label>
-                <input type="text" name="nama_produk" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Kategori</label>
-                <select name="id_kategori" required>
-                    <option value="">-- Pilih Kategori --</option>
-                    <?php while($k = mysqli_fetch_assoc($kategori_query)): ?>
-                        <option value="<?= $k['id_kategori'] ?>"><?= htmlspecialchars($k['nama_kategori']) ?></option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Merk</label>
-                <select name="id_merk" required>
-                    <option value="">-- Pilih Merk --</option>
-                    <?php while($m = mysqli_fetch_assoc($merks_query)): ?>
-                        <option value="<?= $m['id_merk'] ?>"><?= htmlspecialchars($m['nama_merk']) ?></option>
-                    <?php endwhile; ?>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>Harga (Rp)</label>
-                <input type="number" name="harga" min="0" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Stok</label>
-                <input type="number" name="stok" min="0" required>
-            </div>
-            
-            <div class="form-group">
-                <label>Foto Produk (JPG/PNG)</label>
-                <input type="file" name="foto_produk" accept=".jpg, .jpeg, .png" required>
-            </div>
-            
-            <button type="submit" name="submit" class="btn-submit">Simpan Produk</button>
-        </form>
+
+    <script>
+        // Image Preview Logic
+        document.getElementById('imgInput').onchange = evt => {
+            const [file] = evt.target.files
+            if (file) {
+                document.getElementById('preview-container').style.display = 'block';
+                document.getElementById('previewImg').src = URL.createObjectURL(file)
+            }
+        }
+    </script>
+</body>
+</html>
+        </main>
     </div>
 </body>
 </html>
